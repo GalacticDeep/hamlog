@@ -41,11 +41,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case errMsg:
 		m.setStatus("Error: "+msg.err.Error(), true)
-		m.screen = screenLog
 		return m, nil
 
 	case statusMsg:
 		m.setStatus(msg.text, msg.isError)
+		return m, m.loadQSOs
+
+	case formSavedMsg:
+		m.setStatus(msg.text, false)
+		if msg.isEdit {
+			m.screen = screenLog
+			m.editing = nil
+			return m, m.loadQSOs
+		}
+		// Rapid logging: stay in the form, keep sticky fields,
+		// refresh date/time.
+		m.resetForNextQSO(msg.band, msg.freq, msg.mode, msg.power, msg.myPark)
 		return m, m.loadQSOs
 	}
 
@@ -257,12 +268,17 @@ func (m Model) saveForm() tea.Cmd {
 			if err := m.db.Update(&q); err != nil {
 				return errMsg{err}
 			}
-			return statusMsg{"Updated " + q.Call, false}
+			return formSavedMsg{text: "Updated " + q.Call, isEdit: true, call: q.Call}
 		}
+		band := strings.ToLower(get(3))
+		freqStr := get(4)
+		mode := get(5)
+		myPark := get(10)
+		powerStr := get(13)
 		q := qso.QSO{
 			Call: get(0), QsoDate: get(1), TimeOn: get(2),
-			Band: strings.ToLower(get(3)), FreqMHz: freq,
-			Mode: get(5), RstSent: get(6), RstRcvd: get(7),
+			Band: band, FreqMHz: freq,
+			Mode: mode, RstSent: get(6), RstRcvd: get(7),
 			Name: get(8), Qth: get(9), MySigInfo: get(10), SigInfo: get(11),
 			Comment: get(12), TxPower: pwr,
 			MyCall: m.cfg.MyCall, MyGrid: m.cfg.MyGrid,
@@ -270,7 +286,10 @@ func (m Model) saveForm() tea.Cmd {
 		if _, err := m.db.Insert(&q); err != nil {
 			return errMsg{err}
 		}
-		return statusMsg{"Logged " + q.Call, false}
+		return formSavedMsg{
+			text: "Logged " + q.Call, isEdit: false, call: q.Call,
+			band: band, freq: freqStr, mode: mode, power: powerStr, myPark: myPark,
+		}
 	}
 }
 

@@ -2,6 +2,8 @@ package tui
 
 import (
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -56,6 +58,19 @@ type errMsg struct{ err error }
 type statusMsg struct {
 	text    string
 	isError bool
+}
+
+// formSavedMsg is returned after a successful form save. For new QSOs it
+// carries the sticky fields so the form can reset for rapid logging.
+type formSavedMsg struct {
+	text   string
+	isEdit bool
+	call   string
+	band   string
+	freq   string
+	mode   string
+	power  string
+	myPark string
 }
 
 func NewModel(db *store.DB, cfg config.Config) Model {
@@ -159,6 +174,39 @@ func (m *Model) buildForm(q *qso.QSO) {
 		m.inputs[i] = ti
 	}
 	m.focusIdx = 0
+}
+
+// resetForNextQSO clears the form for rapid logging but keeps band, freq,
+// mode, power and my park. Date/time are refreshed to now (UTC) and RST
+// defaults are re-applied for the sticky mode.
+func (m *Model) resetForNextQSO(band, freq, mode, power, myPark string) {
+	now := time.Now().UTC()
+	rst := qso.DefaultRST(mode)
+	if mode == "" {
+		mode = "SSB"
+		rst = qso.DefaultRST(mode)
+	}
+	keep := map[int]string{
+		1: now.Format("20060102"),
+		2: now.Format("150405"),
+		3: band,
+		4: freq,
+		5: strings.ToUpper(mode),
+		6: rst,
+		7: rst,
+		10: myPark,
+		13: power,
+	}
+	for i := range m.inputs {
+		if v, ok := keep[i]; ok {
+			m.inputs[i].SetValue(v)
+		} else {
+			m.inputs[i].SetValue("")
+		}
+		m.inputs[i].Blur()
+	}
+	m.focusIdx = 0
+	m.inputs[0].Focus()
 }
 
 func trimFloat(f float64) string {
