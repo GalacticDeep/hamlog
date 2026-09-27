@@ -1,0 +1,14 @@
+# binaries
+hamlog
+*.adi
+!/testdata/*.adi
+
+# go
+*.test
+*.out
+
+# macOS
+.DS_Store
+
+# local dbs
+*.db
