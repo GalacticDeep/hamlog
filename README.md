@@ -1,6 +1,7 @@
 # hamlog — amateur radio logger (Go + BubbleTea)
 
 Offline terminal logger for general QSOs, extensible to POTA/SOTA and contesting.
+I've been wanting to play around with GO and BubbleTea and this is what I came up with. With help from some open-source LLM models, of course.
 
 ## Quick start
 
